@@ -96,7 +96,7 @@ if %errorlevel% neq 0 (
 
 echo Loading main backend image into Docker...
 if exist "main\build\jib-image.tar" (
-    docker load ^< main\build\jib-image.tar
+    docker load -i main\build\jib-image.tar
     if %errorlevel% neq 0 (
         echo Warning: Failed to load main backend image
     ) else (
@@ -116,7 +116,7 @@ if %errorlevel% neq 0 (
 
 echo Loading llm backend image into Docker...
 if exist "llm\build\jib-image.tar" (
-    docker load ^< llm\build\jib-image.tar
+    docker load -i llm\build\jib-image.tar
     if %errorlevel% neq 0 (
         echo Warning: Failed to load llm backend image
     ) else (
@@ -156,4 +156,3 @@ REM Start docker-compose
 %DOCKER_COMPOSE_CMD% up %*
 
 endlocal
-
