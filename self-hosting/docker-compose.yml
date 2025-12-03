@@ -30,13 +30,13 @@ services:
       - ollama_data:/root/.ollama
     restart: unless-stopped
     # GPU support (optional - remove if not available)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   # LLM backend service
   # Note: Image should be built using: cd Backend/main && ./gradlew :llm:buildImage -x detekt
