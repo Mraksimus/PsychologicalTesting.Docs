@@ -153,6 +153,6 @@ echo ==========================================
 echo.
 
 REM Start docker-compose
-%DOCKER_COMPOSE_CMD% up %*
+%DOCKER_COMPOSE_CMD% up -d %*
 
 endlocal
