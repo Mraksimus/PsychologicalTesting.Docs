@@ -1,0 +1,107 @@
+name: psychological-testing-app
+
+services:
+  # PostgreSQL database
+  psql:
+    image: postgres:latest
+    container_name: psychological-testing-psql
+    ports:
+      - "4343:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: psychological-testing-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # GPU support (optional - remove if not available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # LLM backend service
+  # Note: Image should be built using: cd Backend/main && ./gradlew :llm:buildImage -x detekt
+  # Then load it: docker load < Backend/main/llm/build/jib-image.tar
+  llm:
+    image: psychological-testing-llm:latest
+    pull_policy: never
+    container_name: psychological-testing-llm
+    working_dir: /home/app/llm
+    command: ["-config=config/application.conf"]
+    ports:
+      - "1489:1489"
+    volumes:
+      - ./Backend/main/llm/run/docker/application.conf:/home/app/llm/config/application.conf:ro
+      # Mount api.json if it exists, otherwise it will use the default from Dockerfile
+      - ./Backend/main/llm/run/development/api.json:/home/app/llm/api.json:ro
+    depends_on:
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  # Main backend service
+  # Note: Image should be built using: cd Backend/main && ./gradlew :main:buildImage -x detekt
+  # Then load it: docker load < Backend/main/main/build/jib-image.tar
+  main:
+    image: psychological-testing-main:latest
+    pull_policy: never
+    container_name: psychological-testing-main
+    working_dir: /home/app/main
+    command: ["-config=config/application.conf"]
+    ports:
+      - "1488:1488"
+    volumes:
+      - ./Backend/main/main/run/docker/application.conf:/home/app/main/config/application.conf:ro
+    depends_on:
+      psql:
+        condition: service_healthy
+      llm:
+        condition: service_started
+    restart: unless-stopped
+
+  # Frontend service
+  frontend:
+    build:
+      context: ./Frontend/PsychologicalTesting
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:1488
+    container_name: psychological-testing-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      main:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  ollama_data:
+    driver: local
+
